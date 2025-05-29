@@ -21,6 +21,13 @@ export interface SlackChannelInfo {
     is_member: boolean;
 }
 
+export interface ReindexPayload {
+    channel_ids: string[];
+    force_reindex_all_messages: boolean;
+    reindex_start_date: string | null;
+    reindex_latest_date: string | null;
+}
+
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
     const router = useRouter();
     const { connectors, updateConnector, isLoading: connectorsLoading } = useSearchSourceConnectors();
@@ -332,7 +339,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
         isFetchingRepos,
         handleFetchRepositories,
         handleRepoSelectionChange,
-        discoverSlackChannelsAPI, // Add the new function here
+        discoverSlackChannelsAPI,
+        triggerSlackReindexAPI, // Add this
     };
 }
 
@@ -381,5 +389,47 @@ async function discoverSlackChannelsAPI(connectorId: number): Promise<SlackChann
         console.error("Error discovering Slack channels:", error);
         toast.error(error instanceof Error ? `Error discovering channels: ${error.message}` : "An unknown error occurred while discovering channels.");
         return [];
+    }
+}
+
+// Implementation of triggerSlackReindexAPI
+async function triggerSlackReindexAPI(connectorId: number, payload: ReindexPayload): Promise<boolean> {
+    const token = localStorage.getItem('surfsense_bearer_token');
+    if (!token) {
+        toast.error('Authentication token not found. Please log in again.');
+        return false;
+    }
+
+    try {
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/slack/${connectorId}/reindex-channels`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            }
+        );
+
+        if (response.ok) { // Typically 202 Accepted for async tasks
+            toast.success("Re-indexing task started successfully.");
+            return true;
+        } else {
+            let errorMsg = response.statusText;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.detail || errorMsg;
+            } catch (e) {
+                // Ignore if error response is not JSON
+            }
+            toast.error(`Failed to start re-indexing: ${errorMsg}`);
+            return false;
+        }
+    } catch (error) {
+        console.error("Error triggering Slack re-index:", error);
+        toast.error(error instanceof Error ? `Error triggering re-index: ${error.message}` : "An unknown error occurred while triggering re-index.");
+        return false;
     }
 }

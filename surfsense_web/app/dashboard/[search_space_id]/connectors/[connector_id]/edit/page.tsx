@@ -74,8 +74,8 @@ export default function EditConnectorPage() {
         isFetchingRepos,
         handleFetchRepositories,
         handleRepoSelectionChange,
-        discoverSlackChannelsAPI, // Added the actual API function from the hook
-        // triggerSlackReindex: hookTriggerSlackReindex, // Placeholder for reindex
+        discoverSlackChannelsAPI,
+        triggerSlackReindexAPI, // Ensure this is present and not commented out
     } = useConnectorEditPage(connectorId, searchSpaceId);
 
     // State for Slack Channel Management
@@ -171,10 +171,9 @@ export default function EditConnectorPage() {
             reindex_latest_date: reindexLatestDate || null, // Ensure null if empty
         };
         // Replace with actual API call:
-        // await hookTriggerSlackReindex(connectorId, payload);
-        console.log("Re-indexing payload:", payload);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-        toast.success("Re-indexing task scheduled successfully.");
+        await triggerSlackReindexAPI(connectorId, payload);
+        // The triggerSlackReindexAPI function handles its own success/error toasts.
+        
         setIsReindexing(false);
         // Clear selections after triggering
         setSelectedChannelsForReindex(new Set());
